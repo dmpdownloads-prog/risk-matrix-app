@@ -8,7 +8,10 @@ app = Flask(__name__)
 
 # Firebase init
 cred = credentials.Certificate(os.environ["FIREBASE_CREDENTIALS"])
-firebase_admin.initialize_app(cred)
+
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
+
 db = firestore.client()
 
 COLOR_MAP = {
