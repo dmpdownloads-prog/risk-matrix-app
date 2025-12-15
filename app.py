@@ -1,69 +1,119 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, send_file
 import firebase_admin
 from firebase_admin import credentials, firestore
 from PIL import Image, ImageDraw, ImageFont
 import io
+import os
 
 app = Flask(__name__)
 
-# Firebase init
-cred = credentials.Certificate("serviceAccountKey.json")
+# -------------------------------
+# Firebase Initialization (SAFE)
+# -------------------------------
+cred_path = os.environ.get("FIREBASE_CREDENTIALS")
+
+if not cred_path:
+    raise RuntimeError("FIREBASE_CREDENTIALS environment variable not set")
+
+cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+# -------------------------------
+# Risk color + symbol mapping
+# -------------------------------
 COLOR_MAP = {
-    "high": ((220, 53, 69), "-"),
-    "some": ((255, 193, 7), "!"),
-    "low":  ((40, 167, 69), "+")
+    "high": ((220, 53, 69), "-"),   # red
+    "some": ((255, 193, 7), "!"),   # yellow
+    "low":  ((40, 167, 69), "+")    # green
 }
 
+# -------------------------------
+# Routes
+# -------------------------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.route("/generate")
-def generate():
+def generate_image():
     docs = db.collection("projects").stream()
-    projects = [d.to_dict() for d in docs]
+    projects = [doc.to_dict() for doc in docs]
 
-    img = draw_matrix(projects)
+    if not projects:
+        return "No project data found in Firestore", 400
 
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
+    image = draw_matrix(projects)
 
-    return send_file(buf, mimetype="image/png",
-                     as_attachment=True,
-                     download_name="risk_matrix.png")
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
 
+    return send_file(
+        buffer,
+        mimetype="image/png",
+        as_attachment=True,
+        download_name="risk_matrix.png"
+    )
+
+# -------------------------------
+# Image Generator
+# -------------------------------
 def draw_matrix(projects):
-    cell_w, cell_h = 70, 50
+    cell_w = 70
+    cell_h = 50
     left_margin = 260
     top_margin = 80
 
-    width = left_margin + 6 * cell_w
-    height = top_margin + len(projects) * cell_h + 150
+    domains = ["D1", "D2", "D3", "D4", "D5", "Overall"]
+
+    width = left_margin + len(domains) * cell_w + 20
+    height = top_margin + len(projects) * cell_h + 120
 
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default()
 
-    headers = ["D1", "D2", "D3", "D4", "D5", "Overall"]
-    for i, h in enumerate(headers):
-        draw.text((left_margin + i * cell_w + 20, 40), h, fill="black", font=font)
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 14)
+    except:
+        font = ImageFont.load_default()
 
-    for r, p in enumerate(projects):
-        y = top_margin + r * cell_h
-        draw.text((20, y + 15), p["name"], fill="black", font=font)
+    # Header
+    for i, d in enumerate(domains):
+        x = left_margin + i * cell_w + 18
+        draw.text((x, 40), d, fill="black", font=font)
 
-        for c, v in enumerate(p["values"] + [p["overall"]]):
-            color, symbol = COLOR_MAP[v]
-            cx = left_margin + c * cell_w + cell_w // 2
+    # Rows
+    for row, project in enumerate(projects):
+        y = top_margin + row * cell_h
+
+        # Project name
+        draw.text((20, y + 15), project["name"], fill="black", font=font)
+
+        values = project["values"] + [project["overall"]]
+
+        for col, value in enumerate(values):
+            color, symbol = COLOR_MAP.get(value, ((200, 200, 200), "?"))
+
+            cx = left_margin + col * cell_w + cell_w // 2
             cy = y + cell_h // 2
-            draw.ellipse((cx-14, cy-14, cx+14, cy+14), fill=color)
-            draw.text((cx-4, cy-6), symbol, fill="black", font=font)
+
+            draw.ellipse(
+                (cx - 14, cy - 14, cx + 14, cy + 14),
+                fill=color
+            )
+
+            draw.text(
+                (cx - 4, cy - 7),
+                symbol,
+                fill="black",
+                font=font
+            )
 
     return img
 
+# -------------------------------
+# Local Run (optional)
+# -------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
