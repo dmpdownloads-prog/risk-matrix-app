@@ -45,15 +45,20 @@
   </tr>
 
   {% for p in projects %}
-  <tr>
-    <td>{{ p.name }}</td>
-    {% for v in p.values %}
-      <td>{{ v }}</td>
-    {% endfor %}
-    <td>{{ p.overall }}</td>
-    <td><a href="/delete/{{ p.id }}">Delete</a></td>
-  </tr>
+<tr>
+  <td>{{ p["name"] }}</td>
+
+  {% for v in p["values"] %}
+    <td>{{ v }}</td>
   {% endfor %}
+
+  <td>{{ p["overall"] }}</td>
+
+  <td>
+    <a href="/delete/{{ p["id"] }}">Delete</a>
+  </td>
+</tr>
+{% endfor %}
 </table>
 
 <br>
