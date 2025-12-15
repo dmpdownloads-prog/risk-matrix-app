@@ -3,15 +3,87 @@
 <head>
   <title>Risk Matrix</title>
   <style>
-    select, input { margin: 4px; }
-    table { border-collapse: collapse; margin-top: 20px; }
-    td, th { border: 1px solid #ccc; padding: 6px; }
-    .edit select, .edit input { width: 90px; }
-    button { margin: 2px; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 30px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    input, select {
+      padding: 6px;
+      margin: 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: #007bff;
+      color: white;
+    }
+
+    button.success {
+      background: #28a745;
+      color: white;
+    }
+
+    button.warning {
+      background: #ffc107;
+    }
+
+    button.danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #f1f1f1;
+    }
+
+    .low { background: #d4edda; }
+    .some { background: #fff3cd; }
+    .high { background: #f8d7da; }
+
+    .actions a {
+      margin-left: 8px;
+      text-decoration: none;
+      color: #dc3545;
+    }
   </style>
 </head>
 <body>
-
+<div class="card">
 <h2>Add Project</h2>
 
 <form method="post" action="/add">
@@ -35,7 +107,8 @@
 
   <button type="submit">Add</button>
 </form>
-
+</div>
+<div class="card">
 <h2>Projects</h2>
 
 <table>
@@ -58,7 +131,7 @@
 
       <!-- Domains -->
       {% for v in p["values"] %}
-      <td>
+      <td class="{{ v }}">
         <span class="view">{{ v }}</span>
         <select class="edit" name="{{ domains[loop.index0] }}" hidden>
           <option value="low" {% if v=='low' %}selected{% endif %}>Low</option>
@@ -90,12 +163,19 @@
   </tr>
   {% endfor %}
 </table>
-
+</div>
 
 <br>
-<a href="/generate">
-  <button>Generate Image</button>
-</a>
+<div class="card">
+  <h2>Export</h2>
+  <a href="/generate">
+    <button class="success">Download PNG</button>
+  </a>
+
+  <a href="/generate-pdf">
+    <button class="warning">Download PDF</button>
+  </a>
+</div>
 <script>
 function editRow(id) {
   document.querySelectorAll(`#row-${id} .view`).forEach(e => e.hidden = true);

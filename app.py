@@ -80,6 +80,28 @@ def generate_image():
                      as_attachment=True,
                      download_name="risk_matrix.png")
 
+@app.route("/generate-pdf")
+def generate_pdf():
+    docs = db.collection("projects").stream()
+    projects = [d.to_dict() for d in docs]
+
+    if not projects:
+        return "No project data found", 400
+
+    img = draw_matrix(projects)
+
+    buf = io.BytesIO()
+    img_rgb = img.convert("RGB")
+    img_rgb.save(buf, format="PDF")
+    buf.seek(0)
+
+    return send_file(
+        buf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="risk_matrix.pdf"
+    )
+
 # ---------------- IMAGE LOGIC ----------------
 
 def draw_matrix(projects):
