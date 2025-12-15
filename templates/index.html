@@ -6,6 +6,8 @@
     select, input { margin: 4px; }
     table { border-collapse: collapse; margin-top: 20px; }
     td, th { border: 1px solid #ccc; padding: 6px; }
+    .edit select, .edit input { width: 90px; }
+    button { margin: 2px; }
   </style>
 </head>
 <body>
@@ -45,26 +47,65 @@
   </tr>
 
   {% for p in projects %}
-<tr>
-  <td>{{ p["name"] }}</td>
+  <tr id="row-{{ p['id'] }}">
+    <form method="post" action="/update/{{ p['id'] }}">
+      
+      <!-- Name -->
+      <td>
+        <span class="view">{{ p["name"] }}</span>
+        <input class="edit" name="name" value="{{ p['name'] }}" hidden>
+      </td>
 
-  {% for v in p["values"] %}
-    <td>{{ v }}</td>
+      <!-- Domains -->
+      {% for v in p["values"] %}
+      <td>
+        <span class="view">{{ v }}</span>
+        <select class="edit" name="{{ domains[loop.index0] }}" hidden>
+          <option value="low" {% if v=='low' %}selected{% endif %}>Low</option>
+          <option value="some" {% if v=='some' %}selected{% endif %}>Some</option>
+          <option value="high" {% if v=='high' %}selected{% endif %}>High</option>
+        </select>
+      </td>
+      {% endfor %}
+
+      <!-- Overall -->
+      <td>
+        <span class="view">{{ p["overall"] }}</span>
+        <select class="edit" name="overall" hidden>
+          <option value="low" {% if p['overall']=='low' %}selected{% endif %}>Low</option>
+          <option value="some" {% if p['overall']=='some' %}selected{% endif %}>Some</option>
+          <option value="high" {% if p['overall']=='high' %}selected{% endif %}>High</option>
+        </select>
+      </td>
+
+      <!-- Actions -->
+      <td>
+        <button type="button" onclick="editRow('{{ p['id'] }}')" class="view">Edit</button>
+        <button type="submit" class="edit" hidden>Save</button>
+        <button type="button" onclick="cancelEdit('{{ p['id'] }}')" class="edit" hidden>Cancel</button>
+        <a href="/delete/{{ p['id'] }}" class="view">Delete</a>
+      </td>
+
+    </form>
+  </tr>
   {% endfor %}
-
-  <td>{{ p["overall"] }}</td>
-
-  <td>
-    <a href="/delete/{{ p["id"] }}">Delete</a>
-  </td>
-</tr>
-{% endfor %}
 </table>
+
 
 <br>
 <a href="/generate">
   <button>Generate Image</button>
 </a>
+<script>
+function editRow(id) {
+  document.querySelectorAll(`#row-${id} .view`).forEach(e => e.hidden = true);
+  document.querySelectorAll(`#row-${id} .edit`).forEach(e => e.hidden = false);
+}
 
+function cancelEdit(id) {
+  document.querySelectorAll(`#row-${id} .view`).forEach(e => e.hidden = false);
+  document.querySelectorAll(`#row-${id} .edit`).forEach(e => e.hidden = true);
+}
+</script>
 </body>
 </html>

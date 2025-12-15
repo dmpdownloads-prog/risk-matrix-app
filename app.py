@@ -44,6 +44,20 @@ def add_project():
 
     return redirect(url_for("index"))
 
+@app.route("/update/<id>", methods=["POST"])
+def update_project(id):
+    name = request.form["name"]
+    values = [request.form[d] for d in DOMAINS]
+    overall = request.form["overall"]
+
+    db.collection("projects").document(id).update({
+        "name": name,
+        "values": values,
+        "overall": overall
+    })
+
+    return redirect(url_for("index"))
+
 @app.route("/delete/<id>")
 def delete_project(id):
     db.collection("projects").document(id).delete()
