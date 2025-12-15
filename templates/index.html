@@ -1,12 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Risk Matrix Generator</title>
+  <title>Risk Matrix</title>
+  <style>
+    select, input { margin: 4px; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    td, th { border: 1px solid #ccc; padding: 6px; }
+  </style>
 </head>
 <body>
-  <h2>Risk of Bias Matrix</h2>
-  <a href="/generate">
-    <button>Generate Image</button>
-  </a>
+
+<h2>Add Project</h2>
+
+<form method="post" action="/add">
+  <input name="name" placeholder="Project name" required><br>
+
+  {% for d in domains %}
+    {{ d }}:
+    <select name="{{ d }}">
+      <option value="low">Low</option>
+      <option value="some">Some</option>
+      <option value="high">High</option>
+    </select>
+  {% endfor %}
+
+  Overall:
+  <select name="overall">
+    <option value="low">Low</option>
+    <option value="some">Some</option>
+    <option value="high">High</option>
+  </select>
+
+  <button type="submit">Add</button>
+</form>
+
+<h2>Projects</h2>
+
+<table>
+  <tr>
+    <th>Name</th>
+    {% for d in domains %}<th>{{ d }}</th>{% endfor %}
+    <th>Overall</th>
+    <th>Action</th>
+  </tr>
+
+  {% for p in projects %}
+  <tr>
+    <td>{{ p.name }}</td>
+    {% for v in p.values %}
+      <td>{{ v }}</td>
+    {% endfor %}
+    <td>{{ p.overall }}</td>
+    <td><a href="/delete/{{ p.id }}">Delete</a></td>
+  </tr>
+  {% endfor %}
+</table>
+
+<br>
+<a href="/generate">
+  <button>Generate Image</button>
+</a>
+
 </body>
 </html>
