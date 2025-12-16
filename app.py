@@ -106,43 +106,102 @@ def generate_pdf():
 # ---------------- IMAGE LOGIC ----------------
 
 def draw_matrix(projects):
-    cell_w, cell_h = 70, 50
-    left_margin, top_margin = 260, 80
-    domains = DOMAINS #+ ["Overall"]
+    DOMAINS = list(projects[0]["values"].keys()) if projects else []
 
-    width = left_margin + len(domains) * cell_w
-    height = top_margin + len(projects) * cell_h + 100
+    cell_w = 120
+    base_cell_h = 40
+
+    left_margin = 50
+    top_margin = 50
+    legend_height = 100
+    bottom_margin = legend_height + 30
+
+    cols = len(DOMAINS) + 1
+
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+        font_bold = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = font_bold = ImageFont.load_default()
+
+    COLORS = {
+        "high": "#f8d7da",
+        "some": "#fff3cd",
+        "low":  "#d4edda"
+    }
+
+    # --------- PRE-CALCULATE ROW HEIGHTS ----------
+    dummy_img = Image.new("RGB", (10, 10))
+    dummy_draw = ImageDraw.Draw(dummy_img)
+
+    wrapped_names = []
+    row_heights = []
+
+    for p in projects:
+        lines = wrap_text(p["name"], font, cell_w - 20, dummy_draw)
+        wrapped_names.append(lines)
+        row_heights.append(max(base_cell_h, len(lines) * 18 + 10))
+
+    total_rows_height = sum(row_heights)
+    header_height = base_cell_h
+
+    width = left_margin + cols * cell_w + 50
+    height = top_margin + header_height + total_rows_height + bottom_margin
 
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default()
 
-    for i, d in enumerate(domains):
-        draw.text((left_margin + i * cell_w + 18, 40), d, fill="black", font=font)
+    # --------- HEADER ----------
+    x = left_margin
+    y = top_margin
 
-    for r, p in enumerate(projects):
-        y = top_margin + r * cell_h
-        draw.text((20, y + 15), p["name"], fill="black", font=font)
+    draw.rectangle([x, y, x + cell_w, y + header_height], outline="black")
+    draw.text((x + 10, y + 10), "Project", fill="black", font=font_bold)
 
-        for c, v in enumerate(p["values"] ): #+ [p["overall"]]
-            color, sym = COLOR_MAP[v]
-            cx = left_margin + c * cell_w + cell_w // 2
-            cy = y + cell_h // 2
-            draw.ellipse((cx-14, cy-14, cx+14, cy+14), fill=color)
-            draw.text((cx-4, cy-7), sym, fill="black", font=font)
+    for d in DOMAINS:
+        x += cell_w
+        draw.rectangle([x, y, x + cell_w, y + header_height], outline="black")
+        draw.text((x + 10, y + 10), d, fill="black", font=font_bold)
 
-    legend_y = y + cell_h * (len(projects) + 2)
+    # --------- ROWS ----------
+    y += header_height
 
-    draw.rectangle([50, legend_y, 600, legend_y + 90], outline="black")
+    for idx, p in enumerate(projects):
+        row_h = row_heights[idx]
+        x = left_margin
 
-    draw.text((60, legend_y + 10), "Legend:", fill="black", font=font)
+        # Project name (wrapped)
+        draw.rectangle([x, y, x + cell_w, y + row_h], outline="black")
 
-    draw.rectangle([60, legend_y + 35, 80, legend_y + 55], fill="red")
-    draw.text((90, legend_y + 35), "High", fill="black", font=font)
+        text_y = y + 5
+        for line in wrapped_names[idx]:
+            draw.text((x + 10, text_y), line, fill="black", font=font)
+            text_y += 18
 
-    draw.rectangle([150, legend_y + 35, 170, legend_y + 55], fill="yellow")
-    draw.text((180, legend_y + 35), "Some", fill="black", font=font)
+        # Domain cells
+        for d in DOMAINS:
+            x += cell_w
+            val = p["values"].get(d, "")
+            fill = COLORS.get(val, "white")
 
-    draw.rectangle([260, legend_y + 35, 280, legend_y + 55], fill="green")
-    draw.text((290, legend_y + 35), "Low", fill="black", font=font)
+            draw.rectangle([x, y, x + cell_w, y + row_h], fill=fill, outline="black")
+            draw.text((x + 35, y + (row_h // 2) - 8), val.capitalize(), fill="black", font=font)
+
+        y += row_h
+
+    # --------- LEGEND ----------
+    legend_y = y + 20
+    lx = left_margin
+
+    draw.text((lx, legend_y), "Legend:", fill="black", font=font_bold)
+
+    draw.rectangle([lx, legend_y + 30, lx + 20, legend_y + 50], fill=COLORS["high"], outline="black")
+    draw.text((lx + 30, legend_y + 30), "High", fill="black", font=font)
+
+    draw.rectangle([lx + 120, legend_y + 30, lx + 140, legend_y + 50], fill=COLORS["some"], outline="black")
+    draw.text((lx + 150, legend_y + 30), "Some", fill="black", font=font)
+
+    draw.rectangle([lx + 250, legend_y + 30, lx + 270, legend_y + 50], fill=COLORS["low"], outline="black")
+    draw.text((lx + 280, legend_y + 30), "Low", fill="black", font=font)
+
     return img
