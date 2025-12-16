@@ -131,4 +131,18 @@ def draw_matrix(projects):
             draw.ellipse((cx-14, cy-14, cx+14, cy+14), fill=color)
             draw.text((cx-4, cy-7), sym, fill="black", font=font)
 
+    legend_y = y + cell_h * (len(projects) + 2)
+
+    draw.rectangle([50, legend_y, 600, legend_y + 90], outline="black")
+
+    draw.text((60, legend_y + 10), "Legend:", fill="black", font=font)
+
+    draw.rectangle([60, legend_y + 35, 80, legend_y + 55], fill="red")
+    draw.text((90, legend_y + 35), "High", fill="black", font=font)
+
+    draw.rectangle([150, legend_y + 35, 170, legend_y + 55], fill="yellow")
+    draw.text((180, legend_y + 35), "Some", fill="black", font=font)
+
+    draw.rectangle([260, legend_y + 35, 280, legend_y + 55], fill="green")
+    draw.text((290, legend_y + 35), "Low", fill="black", font=font)
     return img
