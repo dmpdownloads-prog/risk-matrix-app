@@ -135,6 +135,19 @@ def draw_matrix(projects):
     if not projects:
         raise ValueError("No projects to draw")
 
+    # ---- normalize values list -> dict ----
+    normalized = []
+    for p in projects:
+        vals = {}
+        for item in p["values"]:
+            vals[item["domain"]] = item["level"]
+        normalized.append({
+            "name": p["name"],
+            "values": vals
+        })
+
+    projects = normalized
+
     DOMAINS = list(projects[0]["values"].keys())
 
     # ---- layout ----
