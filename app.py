@@ -107,8 +107,7 @@ def generate_pdf():
 
 # ---------- helpers ----------
 def text_width(text, font):
-    bbox = font.getbbox(text)
-    return bbox[2] - bbox[0]
+    return font.getsize(text)[0]
 
 
 def wrap_text(text, font, max_width):
@@ -238,22 +237,13 @@ def draw_matrix(projects):
 
     draw.text((lx, legend_y), "Legend:", fill="black", font=font_bold)
 
-    draw.rectangle(
-        [lx, legend_y + 30, lx + 20, legend_y + 50],
-        fill=COLORS["high"], outline="black"
-    )
+    draw.rectangle([lx, legend_y + 30, lx + 20, legend_y + 50], fill=COLORS["high"], outline="black")
     draw.text((lx + 30, legend_y + 30), "High", fill="black", font=font)
 
-    draw.rectangle(
-        [lx + 120, legend_y + 30, lx + 140, legend_y + 50],
-        fill=COLORS["some"], outline="black"
-    )
+    draw.rectangle([lx + 120, legend_y + 30, lx + 140, legend_y + 50], fill=COLORS["some"], outline="black")
     draw.text((lx + 150, legend_y + 30), "Some", fill="black", font=font)
 
-    draw.rectangle(
-        [lx + 250, legend_y + 30, lx + 270, legend_y + 50],
-        fill=COLORS["low"], outline="black"
-    )
+    draw.rectangle([lx + 250, legend_y + 30, lx + 270, legend_y + 50], fill=COLORS["low"], outline="black")
     draw.text((lx + 280, legend_y + 30), "Low", fill="black", font=font)
 
     return img
