@@ -83,30 +83,29 @@
   </style>
 </head>
 <body>
-<div class="card">
+    <div class="card">
+  <button class="primary" onclick="toggleAdd()">➕ Add Project</button>
+</div>
+<div class="card" id="addPanel" style="display:none">
 <h2>Add Project</h2>
 
-<form method="post" action="/add">
-  <input name="name" placeholder="Project name" required><br>
+  <form method="post" action="/add">
+    <input name="name" placeholder="Project name" required>
 
-  {% for d in domains %}
-    {{ d }}:
-    <select name="{{ d }}">
-      <option value="low">Low</option>
-      <option value="some">Some</option>
-      <option value="high">High</option>
-    </select>
-  {% endfor %}
+    {% for d in domains %}
+      <select name="{{ d }}">
+        <option value="low">Low</option>
+        <option value="some">Some</option>
+        <option value="high">High</option>
+      </select>
+    {% endfor %}
 
-  Overall:
-  <select name="overall">
-    <option value="low">Low</option>
-    <option value="some">Some</option>
-    <option value="high">High</option>
-  </select>
+    <br><br>
+    <textarea name="comments" placeholder="Comments" rows="3" style="width:100%"></textarea>
 
-  <button type="submit">Add</button>
-</form>
+    <br><br>
+    <button class="success" type="submit">Save</button>
+  </form>
 </div>
 <div class="card">
 <h2>Projects</h2>
@@ -115,7 +114,6 @@
   <tr>
     <th>Name</th>
     {% for d in domains %}<th>{{ d }}</th>{% endfor %}
-    <th>Overall</th>
     <th>Action</th>
   </tr>
 
@@ -140,16 +138,6 @@
         </select>
       </td>
       {% endfor %}
-
-      <!-- Overall -->
-      <td>
-        <span class="view">{{ p["overall"] }}</span>
-        <select class="edit" name="overall" hidden>
-          <option value="low" {% if p['overall']=='low' %}selected{% endif %}>Low</option>
-          <option value="some" {% if p['overall']=='some' %}selected{% endif %}>Some</option>
-          <option value="high" {% if p['overall']=='high' %}selected{% endif %}>High</option>
-        </select>
-      </td>
 
       <!-- Actions -->
       <td>
@@ -185,6 +173,10 @@ function editRow(id) {
 function cancelEdit(id) {
   document.querySelectorAll(`#row-${id} .view`).forEach(e => e.hidden = false);
   document.querySelectorAll(`#row-${id} .edit`).forEach(e => e.hidden = true);
+}
+function toggleAdd() {
+  const panel = document.getElementById("addPanel");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
 }
 </script>
 </body>

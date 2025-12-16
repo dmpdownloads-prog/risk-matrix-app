@@ -15,9 +15,9 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 COLOR_MAP = {
-    "high": ((220, 53, 69), "-"),
-    "some": ((255, 193, 7), "!"),
-    "low":  ((40, 167, 69), "+")
+    "high": ((220, 53, 69), ""),
+    "some": ((255, 193, 7), ""),
+    "low":  ((40, 167, 69), "")
 }
 
 DOMAINS = ["D1", "D2", "D3", "D4", "D5"]
@@ -34,12 +34,13 @@ def index():
 def add_project():
     name = request.form["name"]
     values = [request.form[d] for d in DOMAINS]
-    overall = request.form["overall"]
+    comments = request.form["comments"]
+    #overall = request.form["overall"]
 
     db.collection("projects").add({
         "name": name,
         "values": values,
-        "overall": overall
+        "comments": comments
     })
 
     return redirect(url_for("index"))
@@ -48,12 +49,12 @@ def add_project():
 def update_project(id):
     name = request.form["name"]
     values = [request.form[d] for d in DOMAINS]
-    overall = request.form["overall"]
+    comments = request.form["comments"]
 
     db.collection("projects").document(id).update({
         "name": name,
         "values": values,
-        "overall": overall
+        "comments": comments
     })
 
     return redirect(url_for("index"))
@@ -107,7 +108,7 @@ def generate_pdf():
 def draw_matrix(projects):
     cell_w, cell_h = 70, 50
     left_margin, top_margin = 260, 80
-    domains = DOMAINS + ["Overall"]
+    domains = DOMAINS #+ ["Overall"]
 
     width = left_margin + len(domains) * cell_w
     height = top_margin + len(projects) * cell_h + 100
@@ -123,7 +124,7 @@ def draw_matrix(projects):
         y = top_margin + r * cell_h
         draw.text((20, y + 15), p["name"], fill="black", font=font)
 
-        for c, v in enumerate(p["values"] + [p["overall"]]):
+        for c, v in enumerate(p["values"] ): #+ [p["overall"]]
             color, sym = COLOR_MAP[v]
             cx = left_margin + c * cell_w + cell_w // 2
             cy = y + cell_h // 2
