@@ -105,9 +105,40 @@ def generate_pdf():
 
 # ---------------- IMAGE LOGIC ----------------
 
-def draw_matrix(projects):
-    DOMAINS = list(projects[0]["values"].keys()) if projects else []
+# ---------- helpers ----------
+def text_width(text, font):
+    bbox = font.getbbox(text)
+    return bbox[2] - bbox[0]
 
+
+def wrap_text(text, font, max_width):
+    words = text.split()
+    lines = []
+    current = ""
+
+    for w in words:
+        test = current + (" " if current else "") + w
+        if text_width(test, font) <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = w
+
+    if current:
+        lines.append(current)
+
+    return lines
+
+
+# ---------- main ----------
+def draw_matrix(projects):
+    if not projects:
+        raise ValueError("No projects to draw")
+
+    DOMAINS = list(projects[0]["values"].keys())
+
+    # ---- layout ----
     cell_w = 120
     base_cell_h = 40
 
@@ -116,42 +147,43 @@ def draw_matrix(projects):
     legend_height = 100
     bottom_margin = legend_height + 30
 
-    cols = len(DOMAINS) + 1
+    cols = len(DOMAINS) + 1  # Project + domains
 
+    # ---- fonts ----
     try:
         font = ImageFont.truetype("arial.ttf", 14)
         font_bold = ImageFont.truetype("arial.ttf", 14)
     except:
         font = font_bold = ImageFont.load_default()
 
+    # ---- colors ----
     COLORS = {
         "high": "#f8d7da",
         "some": "#fff3cd",
         "low":  "#d4edda"
     }
 
-    # --------- PRE-CALCULATE ROW HEIGHTS ----------
-    dummy_img = Image.new("RGB", (10, 10))
-    dummy_draw = ImageDraw.Draw(dummy_img)
-
+    # ---- calculate wrapped names & row heights ----
     wrapped_names = []
     row_heights = []
 
     for p in projects:
-        lines = wrap_text(p["name"], font, cell_w - 20, dummy_draw)
+        lines = wrap_text(p["name"], font, cell_w - 20)
         wrapped_names.append(lines)
-        row_heights.append(max(base_cell_h, len(lines) * 18 + 10))
+        row_h = max(base_cell_h, len(lines) * 18 + 10)
+        row_heights.append(row_h)
 
-    total_rows_height = sum(row_heights)
     header_height = base_cell_h
+    table_height = header_height + sum(row_heights)
 
     width = left_margin + cols * cell_w + 50
-    height = top_margin + header_height + total_rows_height + bottom_margin
+    height = top_margin + table_height + bottom_margin
 
+    # ---- create image ----
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
 
-    # --------- HEADER ----------
+    # ---- header ----
     x = left_margin
     y = top_margin
 
@@ -163,45 +195,66 @@ def draw_matrix(projects):
         draw.rectangle([x, y, x + cell_w, y + header_height], outline="black")
         draw.text((x + 10, y + 10), d, fill="black", font=font_bold)
 
-    # --------- ROWS ----------
+    # ---- rows ----
     y += header_height
 
     for idx, p in enumerate(projects):
         row_h = row_heights[idx]
         x = left_margin
 
-        # Project name (wrapped)
+        # project name cell
         draw.rectangle([x, y, x + cell_w, y + row_h], outline="black")
 
-        text_y = y + 5
+        ty = y + 5
         for line in wrapped_names[idx]:
-            draw.text((x + 10, text_y), line, fill="black", font=font)
-            text_y += 18
+            draw.text((x + 10, ty), line, fill="black", font=font)
+            ty += 18
 
-        # Domain cells
+        # domain cells
         for d in DOMAINS:
             x += cell_w
             val = p["values"].get(d, "")
             fill = COLORS.get(val, "white")
 
-            draw.rectangle([x, y, x + cell_w, y + row_h], fill=fill, outline="black")
-            draw.text((x + 35, y + (row_h // 2) - 8), val.capitalize(), fill="black", font=font)
+            draw.rectangle(
+                [x, y, x + cell_w, y + row_h],
+                fill=fill,
+                outline="black"
+            )
+
+            if val:
+                draw.text(
+                    (x + 35, y + (row_h // 2) - 8),
+                    val.capitalize(),
+                    fill="black",
+                    font=font
+                )
 
         y += row_h
 
-    # --------- LEGEND ----------
+    # ---- legend ----
     legend_y = y + 20
     lx = left_margin
 
     draw.text((lx, legend_y), "Legend:", fill="black", font=font_bold)
 
-    draw.rectangle([lx, legend_y + 30, lx + 20, legend_y + 50], fill=COLORS["high"], outline="black")
+    draw.rectangle(
+        [lx, legend_y + 30, lx + 20, legend_y + 50],
+        fill=COLORS["high"], outline="black"
+    )
     draw.text((lx + 30, legend_y + 30), "High", fill="black", font=font)
 
-    draw.rectangle([lx + 120, legend_y + 30, lx + 140, legend_y + 50], fill=COLORS["some"], outline="black")
+    draw.rectangle(
+        [lx + 120, legend_y + 30, lx + 140, legend_y + 50],
+        fill=COLORS["some"], outline="black"
+    )
     draw.text((lx + 150, legend_y + 30), "Some", fill="black", font=font)
 
-    draw.rectangle([lx + 250, legend_y + 30, lx + 270, legend_y + 50], fill=COLORS["low"], outline="black")
+    draw.rectangle(
+        [lx + 250, legend_y + 30, lx + 270, legend_y + 50],
+        fill=COLORS["low"], outline="black"
+    )
     draw.text((lx + 280, legend_y + 30), "Low", fill="black", font=font)
 
     return img
+
