@@ -132,132 +132,30 @@ def wrap_text(text, font, max_width):
 
 # ---------- main ----------
 def draw_matrix(projects):
-    if not projects:
-        raise ValueError("No projects to draw")
+    cell_w, cell_h = 70, 50
+    left_margin, top_margin = 260, 80
+    domains = DOMAINS + ["Overall"]
 
-    # ---- normalize values list -> dict ----
-    normalized = []
-    for p in projects:
-        vals = {}
-        for item in p["values"]:
-            vals[item["domain"]] = item["level"]
-        normalized.append({
-            "name": p["name"],
-            "values": vals
-        })
+    width = left_margin + len(domains) * cell_w
+    height = top_margin + len(projects) * cell_h + 100
 
-    projects = normalized
-
-    DOMAINS = list(projects[0]["values"].keys())
-
-    # ---- layout ----
-    cell_w = 120
-    base_cell_h = 40
-
-    left_margin = 50
-    top_margin = 50
-    legend_height = 100
-    bottom_margin = legend_height + 30
-
-    cols = len(DOMAINS) + 1  # Project + domains
-
-    # ---- fonts ----
-    try:
-        font = ImageFont.truetype("arial.ttf", 14)
-        font_bold = ImageFont.truetype("arial.ttf", 14)
-    except:
-        font = font_bold = ImageFont.load_default()
-
-    # ---- colors ----
-    COLORS = {
-        "high": "#f8d7da",
-        "some": "#fff3cd",
-        "low":  "#d4edda"
-    }
-
-    # ---- calculate wrapped names & row heights ----
-    wrapped_names = []
-    row_heights = []
-
-    for p in projects:
-        lines = wrap_text(p["name"], font, cell_w - 20)
-        wrapped_names.append(lines)
-        row_h = max(base_cell_h, len(lines) * 18 + 10)
-        row_heights.append(row_h)
-
-    header_height = base_cell_h
-    table_height = header_height + sum(row_heights)
-
-    width = left_margin + cols * cell_w + 50
-    height = top_margin + table_height + bottom_margin
-
-    # ---- create image ----
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
 
-    # ---- header ----
-    x = left_margin
-    y = top_margin
+    for i, d in enumerate(domains):
+        draw.text((left_margin + i * cell_w + 18, 40), d, fill="black", font=font)
 
-    draw.rectangle([x, y, x + cell_w, y + header_height], outline="black")
-    draw.text((x + 10, y + 10), "Project", fill="black", font=font_bold)
+    for r, p in enumerate(projects):
+        y = top_margin + r * cell_h
+        draw.text((20, y + 15), p["name"], fill="black", font=font)
 
-    for d in DOMAINS:
-        x += cell_w
-        draw.rectangle([x, y, x + cell_w, y + header_height], outline="black")
-        draw.text((x + 10, y + 10), d, fill="black", font=font_bold)
-
-    # ---- rows ----
-    y += header_height
-
-    for idx, p in enumerate(projects):
-        row_h = row_heights[idx]
-        x = left_margin
-
-        # project name cell
-        draw.rectangle([x, y, x + cell_w, y + row_h], outline="black")
-
-        ty = y + 5
-        for line in wrapped_names[idx]:
-            draw.text((x + 10, ty), line, fill="black", font=font)
-            ty += 18
-
-        # domain cells
-        for d in DOMAINS:
-            x += cell_w
-            val = p["values"].get(d, "")
-            fill = COLORS.get(val, "white")
-
-            draw.rectangle(
-                [x, y, x + cell_w, y + row_h],
-                fill=fill,
-                outline="black"
-            )
-
-            if val:
-                draw.text(
-                    (x + 35, y + (row_h // 2) - 8),
-                    val.capitalize(),
-                    fill="black",
-                    font=font
-                )
-
-        y += row_h
-
-    # ---- legend ----
-    legend_y = y + 20
-    lx = left_margin
-
-    draw.text((lx, legend_y), "Legend:", fill="black", font=font_bold)
-
-    draw.rectangle([lx, legend_y + 30, lx + 20, legend_y + 50], fill=COLORS["high"], outline="black")
-    draw.text((lx + 30, legend_y + 30), "High", fill="black", font=font)
-
-    draw.rectangle([lx + 120, legend_y + 30, lx + 140, legend_y + 50], fill=COLORS["some"], outline="black")
-    draw.text((lx + 150, legend_y + 30), "Some", fill="black", font=font)
-
-    draw.rectangle([lx + 250, legend_y + 30, lx + 270, legend_y + 50], fill=COLORS["low"], outline="black")
-    draw.text((lx + 280, legend_y + 30), "Low", fill="black", font=font)
+        for c, v in enumerate(p["values"]):
+            color, sym = COLOR_MAP[v]
+            cx = left_margin + c * cell_w + cell_w // 2
+            cy = y + cell_h // 2
+            draw.ellipse((cx-14, cy-14, cx+14, cy+14), fill=color)
+            draw.text((cx-4, cy-7), sym, fill="black", font=font)
 
     return img
 
