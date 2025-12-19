@@ -56,10 +56,9 @@
     }
 
     table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
+    table-layout: fixed;
+    width: 100%;
+}
 
     th, td {
       border: 1px solid #ddd;
@@ -72,7 +71,7 @@
     }
 
     .low { background: #d4edda; }
-    .some { background: #fff3cd; }
+    .medium { background: #fff3cd; }
     .high { background: #f8d7da; }
 
     .actions a {
@@ -80,6 +79,46 @@
       text-decoration: none;
       color: #dc3545;
     }
+    .matrix-cell {
+  vertical-align: top;
+  padding: 6px;
+  max-width: 160px;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.matrix-cell .value {
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+/* Comment text */
+.matrix-cell .comment {
+  font-size: 12px;
+  line-height: 1.3;
+  color: #333;
+  white-space: pre-wrap;   /* preserves line breaks */
+  word-break: break-word;
+}
+
+/* Coloring */
+td.high { background-color: #ffd6d6; }
+td.medium { background-color: #e6ffe6; }
+td.low  { background-color: #fff5cc; }
+
+.comment { display: none; }
+.matrix-cell:hover .comment { display: block; }
+
+.project-name {
+    width: 260px;               /* fixed column width */
+    max-width: 260px;
+    white-space: normal;        /* allow wrapping */
+    word-wrap: break-word;      /* break long words */
+    overflow-wrap: break-word;  /* modern browsers */
+    vertical-align: top;
+}
+
   </style>
 </head>
 <body>
@@ -90,29 +129,32 @@
 <h2>Add Project</h2>
 
   <form method="post" action="/add">
-    <input name="name" placeholder="Project name" required>
+   <input type="hidden" id="projectId">
 
-    {% for d in domains %}
-      <select name="{{ d }}">
-        <option value="low">Low</option>
-        <option value="some">Some</option>
-        <option value="high">High</option>
-      </select>
-    {% endfor %}
+<input id="projectName" name="name" placeholder="Project name" required>
 
-    <br><br>
-    <textarea name="comments" placeholder="Comments" rows="3" style="width:100%"></textarea>
+{% for d in domains %}
+ 
+  <div class="domain-row">
+       <h4>{{ d }} : </h4><select id="{{ d }}_value" name="{{ d }}">
+      <option value="low">Low</option>
+      <option value="medium">medium</option>
+      <option value="high">High</option>
+    </select>
 
-    <br><br>
-    <button class="success" type="submit">Save</button>
+    <input id="{{ d }}_comment" placeholder="Comment for {{ d }}">
+  </div>
+{% endfor %}
+      <button type="button" onclick="saveProject()">Save</button>
+  <button onclick="hideEditor()">Cancel</button>
   </form>
 </div>
 <div class="card">
 <h2>Projects</h2>
 
-<table>
+<table class="table table-bordered">
   <tr>
-    <th>Name</th>
+    <th class="project-name">Name</th>
     {% for d in domains %}<th>{{ d }}</th>{% endfor %}
     <th>Action</th>
   </tr>
@@ -128,22 +170,21 @@
       </td>
 
       <!-- Domains -->
-      {% for v in p["values"] %}
-      <td class="{{ v }}">
-        <span class="view">{{ v }}</span>
-        <select class="edit" name="{{ domains[loop.index0] }}" hidden>
-          <option value="low" {% if v=='low' %}selected{% endif %}>Low</option>
-          <option value="some" {% if v=='some' %}selected{% endif %}>Some</option>
-          <option value="high" {% if v=='high' %}selected{% endif %}>High</option>
-        </select>
-      </td>
-      {% endfor %}
+     {% for d in domains %}
+  {% set v = p["values"].get(d, "low") %}
+  {% set cmt = p["comments"].get(d, "") %}
 
+  <td class="matrix-cell {{ v }}">
+    <div class="value">{{ v|capitalize }}</div>
+
+    {% if cmt %}
+      <div class="comment">{{ cmt }}</div>
+    {% endif %}
+  </td>
+{% endfor %}
       <!-- Actions -->
       <td>
-        <button type="button" onclick="editRow('{{ p['id'] }}')" class="view">Edit</button>
-        <button type="submit" class="edit" hidden>Save</button>
-        <button type="button" onclick="cancelEdit('{{ p['id'] }}')" class="edit" hidden>Cancel</button>
+        <button type="button" onclick="editProject('{{p.id}}')">Edit</button>
         <a href="/delete/{{ p['id'] }}" class="view">Delete</a>
       </td>
 
@@ -160,7 +201,7 @@
     <button class="success">Download PNG</button>
   </a>
 
-  <a href="/generate-pdf">
+  <a href="/download-pdf">
     <button class="warning">Download PDF</button>
   </a>
 </div>
@@ -178,6 +219,81 @@ function toggleAdd() {
   const panel = document.getElementById("addPanel");
   panel.style.display = panel.style.display === "none" ? "block" : "none";
 }
+function editProject(id) {
+  console.log("Editing project id:", id);
+
+  fetch(`/project/${id}`)
+    .then(r => r.json())
+    .then(p => {
+
+      if (p.error) {
+        alert("Project not found");
+        return;
+      }
+
+      const pid = document.getElementById("projectId");
+      const pname = document.getElementById("projectName");
+
+      if (!pid || !pname) {
+        console.error("Editor elements missing in DOM");
+        return;
+      }
+
+      pid.value = id;
+      pname.value = p.name || "";
+
+      ["D1","D2","D3","D4","D5"].forEach(d => {
+        const v = document.getElementById(d+"_value");
+        const c = document.getElementById(d+"_comment");
+
+        if (v) v.value = p.values?.[d] || "low";
+        if (c) c.value = p.comments?.[d] || "";
+      });
+
+      showEditor();
+    })
+    .catch(err => console.error(err));
+}
+
+
+function saveProject() {
+  const values = {};
+  const comments = {};
+
+  ["D1","D2","D3","D4","D5"].forEach(d => {
+    values[d] = document.getElementById(d+"_value").value;
+    comments[d] = document.getElementById(d+"_comment").value;
+  });
+
+  fetch("/save", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      id: document.getElementById("projectId").value || null,
+      name: document.getElementById("projectName").value,
+      values,
+      comments
+    })
+  }).then(() => location.reload());
+}
+function showEditor() {
+    document.getElementById("addPanel").style.display = "block";
+  }
+
+  function hideEditor() {
+    document.getElementById("addPanel").style.display = "none";
+
+    // clear form when closing
+    document.getElementById("projectId").value = "";
+    document.getElementById("projectName").value = "";
+
+    ["D1","D2","D3","D4","D5"].forEach(d => {
+      document.getElementById(d+"_value").value = "low";
+      document.getElementById(d+"_comment").value = "";
+    });
+  }
+
+
 </script>
 </body>
 </html>
