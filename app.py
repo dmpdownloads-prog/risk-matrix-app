@@ -245,8 +245,8 @@ def draw_matrix(projects):
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
 
-    font = ImageFont.truetype("arial.ttf", 14 * scale)
-    font_small = ImageFont.truetype("arial.ttf", 12 * scale)
+    font = ImageFont.truetype("static/fonts/RobotoSlab-Regular.ttf", 14 * scale)
+    font_small = ImageFont.truetype("static/fonts/RobotoSlab-Regular.ttf", 12 * scale)
 
     # --- headers ---
     for i, d in enumerate(domains):
