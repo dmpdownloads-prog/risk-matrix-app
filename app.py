@@ -7,6 +7,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from io import BytesIO
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib import colors
+
 
 app = Flask(__name__)
 
@@ -24,7 +27,18 @@ COLOR_MAP = {
     "low":  ((40, 167, 69), "")
 }
 
-DOMAINS = ["D1", "D2", "D3", "D4", "D5"]
+DOMAINS = ["D1", "D2", "D3", "D4", "D5","D6","D7","D8","D9"]
+DOMAINTEXT = ["Protocol", "Time since COS publication", "Scope", "Searches 1", "Searches 2", "Screening", "Outcome reporting bias 1", "Outcome reporting bias 2", "Outcome reporting bias 3"]
+DOMAINQUESTIONS = [
+    "Did the authors of the uptake study publish a protocol a priori? ", 
+    "Is the time gap between the COS publication and uptake study appropriate? ", 
+    "Is the scope of the studies included in the uptake study similar to the scope of the published COS?   ", 
+    "Did the authors of the uptake study include appropriate search terms and key words in the search strategy?  ", 
+    "Did the authors of the uptake study search appropriate databases to identify studies to include in the COS uptake study?",
+    "Did the authors of the uptake study perform the screening of articles independently?",
+    "Are the outcomes studied in the COS uptake study the same as those mentioned in its protocol? ",
+    "Did the authors of the uptake study publish all planned analyses about uptake of the COS?  ",
+    "Is adequate information published for the COS uptake study to verify the published results? "]
 
 # ---------------- ROUTES ----------------
 
@@ -32,7 +46,7 @@ DOMAINS = ["D1", "D2", "D3", "D4", "D5"]
 def index():
     docs = db.collection("projects").stream()
     projects = [{**d.to_dict(), "id": d.id} for d in docs]
-    return render_template("index.html", projects=projects, domains=DOMAINS)
+    return render_template("index.html", projects=projects, domains=DOMAINS,  domaintext=DOMAINTEXT,  domainqns=DOMAINQUESTIONS)
 
 @app.route("/add", methods=["POST"])
 def add_project():
@@ -135,38 +149,36 @@ def download_pdf():
     story = []
 
     for idx, p in enumerate(projects, start=1):
-        # Project title
         title = f"{idx}. {p['name']}:"
         story.append(Paragraph(f"<b>{title}</b>", styles["Normal"]))
         story.append(Spacer(1, 8))
 
-        items = []
-        for d in ["D1", "D2", "D3", "D4", "D5"]:
-            value = p["values"].get(d, "low")
+        table_data = [["Domain", "Value", "Comment"]]
+
+        for d, label in zip(DOMAINS, DOMAINTEXT):
+            value = p["values"].get(d, "low").capitalize()
             comment = p["comments"].get(d, "")
+            table_data.append([
+            Paragraph(label, styles["Normal"]),
+            Paragraph(value, styles["Normal"]),
+            Paragraph(comment if comment else "-", styles["Normal"])
+    ])
 
-            text = f"<b>{d}</b> : {value}"
-            if comment:
-                text += f" - {comment}"
+        table = Table(table_data, colWidths=[150, 70, 240])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (1, 1), (1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
 
-            items.append(
-                ListItem(
-                    Paragraph(text, styles["Normal"]),
-                    leftIndent=18
-                )
-            )
-
-        story.append(
-            ListFlowable(
-                items,
-                bulletType="bullet",
-                start="circle",
-                leftIndent=12
-            )
-        )
-
+        story.append(table)
         story.append(Spacer(1, 20))
 
+    doc.title = "Risk Matrix Summary"
+    doc.author = "Risk Matrix App"
+    doc.subject = "Project Risk Assessment"
     doc.build(story)
 
     buffer.seek(0)
@@ -205,6 +217,33 @@ def wrap_text(draw, text, font, max_width):
 
     return lines
 
+def draw_wrapped_text(draw, text, x, y, max_width, font, line_spacing=4):
+    words = text.split()
+    lines = []
+    current = ""
+
+    for word in words:
+        test = current + " " + word if current else word
+        if draw.textlength(test, font=font) <= max_width:
+            current = test
+        else:
+            lines.append(current)
+            current = word
+
+    if current:
+        lines.append(current)
+
+    # get font height safely
+    ascent, descent = font.getmetrics()
+    line_height = ascent + descent + line_spacing
+
+    for i, line in enumerate(lines):
+        draw.text(
+            (x, y + i * line_height),
+            line,
+            fill="black",
+            font=font
+        )
 
 # ---------- main ----------
 
@@ -216,16 +255,27 @@ COLOR_MAP = {
 }
 
 LEGEND = [
-    ("High", COLOR_MAP["high"]),
-    ("Medium", COLOR_MAP["medium"]),
-    ("Low",  COLOR_MAP["low"]),
+    ("High Risk", COLOR_MAP["high"]),
+    ("Unclear", COLOR_MAP["medium"]),
+    ("Low Risk",  COLOR_MAP["low"]),
 ]
 
-DOMAINS = ["D1", "D2", "D3", "D4", "D5"]
+DOMAINS = ["D1", "D2", "D3", "D4", "D5","D6","D7","D8","D9"]
+DOMAINTEXT1 = [
+    "Protocol",
+    "Time",
+    "Scope",
+    "Search 1",
+    "Search 2",
+    "Screening",
+    "Outcome Reporting Bias 1",
+    "Outcome Reporting Bias 2",
+    "Outcome Reporting Bias 3"
+]
 
 def draw_matrix(projects):
     # --- layout ---
-    cell_w, cell_h = 70, 60
+    cell_w, cell_h = 90, 60 #cell_w 70 DMP
     left_margin = 280
     top_margin = 100
     name_col_width = 240
@@ -249,10 +299,22 @@ def draw_matrix(projects):
     font_small = ImageFont.truetype("static/fonts/RobotoSlab-Regular.ttf", 12 * scale)
 
     # --- headers ---
-    for i, d in enumerate(domains):
-        x = left_margin + i * cell_w + cell_w // 2
-        draw.text((x - 15, top_margin - 40), d, fill="black", font=font)
+    #for i, d in enumerate(domains):
+    #    x = left_margin + i * cell_w + cell_w // 2
+    #    draw.text((x - 15, top_margin - 40), d, fill="black", font=font)
 
+    for i, header in enumerate(DOMAINTEXT1):
+        x = left_margin + i * cell_w
+
+        draw_wrapped_text(
+            draw,
+            header,
+            x + 10, 
+            top_margin - 90,   # ⬅ more space above
+            cell_w - 20,
+            font,
+            line_spacing=4     # ⬅ extra gap between lines
+        )
     # --- rows ---
     for r, p in enumerate(projects):
         y = top_margin + r * cell_h
@@ -299,12 +361,12 @@ def draw_matrix(projects):
         font=font
     )
 
-    legend_gap = 90 * scale
+    legend_gap = 120 * scale
 
     for i, (label, (color, sym)) in enumerate([
-        ("High", COLOR_MAP["high"]),
-        ("Medium", COLOR_MAP["medium"]),
-        ("Low",  COLOR_MAP["low"]),
+        ("High Risk", COLOR_MAP["high"]),
+        ("Unclear", COLOR_MAP["medium"]),
+        ("Low Risk",  COLOR_MAP["low"]),
     ]):
         cx = legend_x + i * legend_gap
         cy = legend_y

@@ -136,10 +136,10 @@ td.low  { background-color: #fff5cc; }
 {% for d in domains %}
  
   <div class="domain-row">
-       <h4>{{ d }} : </h4><select id="{{ d }}_value" name="{{ d }}">
-      <option value="low">Low</option>
-      <option value="medium">medium</option>
-      <option value="high">High</option>
+       <h4>{{ d }} : {{ domaintext[loop.index0] }} - {{ domainqns [loop.index0] }} : </h4><select id="{{ d }}_value" name="{{ d }}">
+      <option value="high">High Risk</option>
+      <option value="low">Low Risk</option>
+      <option value="medium">Unclear</option>
     </select>
 
     <input id="{{ d }}_comment" placeholder="Comment for {{ d }}">
@@ -155,7 +155,7 @@ td.low  { background-color: #fff5cc; }
 <table class="table table-bordered">
   <tr>
     <th class="project-name">Name</th>
-    {% for d in domains %}<th>{{ d }}</th>{% endfor %}
+    {% for d in domains %}<th>{{ domaintext[loop.index0] }}</th>{% endfor %}
     <th>Action</th>
   </tr>
 
@@ -242,7 +242,7 @@ function editProject(id) {
       pid.value = id;
       pname.value = p.name || "";
 
-      ["D1","D2","D3","D4","D5"].forEach(d => {
+      ["D1","D2","D3","D4","D5","D6","D7","D8","D9"].forEach(d => {
         const v = document.getElementById(d+"_value");
         const c = document.getElementById(d+"_comment");
 
@@ -260,7 +260,7 @@ function saveProject() {
   const values = {};
   const comments = {};
 
-  ["D1","D2","D3","D4","D5"].forEach(d => {
+  ["D1","D2","D3","D4","D5","D6","D7","D8","D9"].forEach(d => {
     values[d] = document.getElementById(d+"_value").value;
     comments[d] = document.getElementById(d+"_comment").value;
   });
@@ -287,7 +287,7 @@ function showEditor() {
     document.getElementById("projectId").value = "";
     document.getElementById("projectName").value = "";
 
-    ["D1","D2","D3","D4","D5"].forEach(d => {
+    ["D1","D2","D3","D4","D5","D6","D7","D8","D9"].forEach(d => {
       document.getElementById(d+"_value").value = "low";
       document.getElementById(d+"_comment").value = "";
     });
