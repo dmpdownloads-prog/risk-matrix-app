@@ -41,7 +41,11 @@ DOMAINQUESTIONS = [
     "Are the outcomes studied in the COS uptake study the same as those mentioned in its protocol? ",
     "Did the authors of the uptake study publish all planned analyses about uptake of the COS?  ",
     "Is adequate information published for the COS uptake study to verify the published results? "]
-
+VALUE_LABELS = {
+    "high": "High Risk",
+    "low": "Low Risk",
+    "medium": "Unclear"
+}
 # ---------------- ROUTES ----------------
 
 @app.route("/")
@@ -123,6 +127,7 @@ def save_project():
 
     doc_id = data.get("id")
     if doc_id:
+        project["created_at"] = SERVER_TIMESTAMP
         db.collection("projects").document(doc_id).set(project)
     else:
         project["created_at"] = SERVER_TIMESTAMP
@@ -226,6 +231,8 @@ def download_pdf():
     if not projects:
         return "No projects found", 400
 
+    
+
     # Build PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -238,7 +245,8 @@ def download_pdf():
 
         table_data = [["Domain", "Value", "Comment"]]
         for d, label in zip(DOMAINS, DOMAINTEXT):
-            value = p["values"].get(d, "low").capitalize()
+            raw_value = p["values"].get(d, "low")
+            value = VALUE_LABELS.get(raw_value, raw_value)
             comment = p["comments"].get(d, "")
             table_data.append([
             Paragraph(label, styles["Normal"]),

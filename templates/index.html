@@ -181,22 +181,28 @@ td.low  { background-color: #fff5cc; }
   </tr>
 
   {% for p in projects %}
-  <tr id="row-{{ p['id'] }}">
+  <tr id="row-{{ p['id'] }}" data-group="{{ p.get('group', '') }}">
     <form method="post" action="/update/{{ p['id'] }}">
       
       <!-- Name -->
       <td>
         <span class="view">{{ p["name"] }}</span>
-        <input class="edit" name="name" value="{{ p['name'] }}" hidden>
-      </td>
+        <span class="edit" hidden>{{ p["name"] }}</span>
+        <!--<input class="edit" name="name" value="{{ p['name'] }}" hidden> -->
+      </td> 
 
       <!-- Domains -->
      {% for d in domains %}
   {% set v = p["values"].get(d, "low") %}
   {% set cmt = p["comments"].get(d, "") %}
+  {% set VALUE_LABELS = {
+  "high": "High Risk",
+  "low": "Low Risk",
+  "medium": "Unclear"
+} %}
 
   <td class="matrix-cell {{ v }}">
-    <div class="value">{{ v|capitalize }}</div>
+    <div class="value">{{ VALUE_LABELS.get(v, v) }}</div>
 
     {% if cmt %}
       <div class="comment">{{ cmt }}</div>
@@ -244,7 +250,7 @@ function editRow(id) {
 
 function cancelEdit(id) {
   document.querySelectorAll(`#row-${id} .view`).forEach(e => e.hidden = false);
-  document.querySelectorAll(`#row-${id} .edit`).forEach(e => e.hidden = true);
+  document.querySelectorAll(`#row-${id} .edit`).forEach(e => e.hidden = false);
 }
 function toggleAdd() {
   const panel = document.getElementById("addPanel");
@@ -252,6 +258,20 @@ function toggleAdd() {
 }
 function editProject(id) {
   console.log("Editing project id:", id);
+
+  const row = document.getElementById("row-" + id);
+
+    // Toggle edit/view fields (existing logic)
+    row.querySelectorAll(".view").forEach(el => el.hidden = true);
+    row.querySelectorAll(".edit").forEach(el => el.hidden = false);
+
+    // 🔹 Auto-select group in dropdown
+    const group = row.dataset.group || "";
+    const groupName = document.getElementById("groupName");
+
+    if (groupName) {
+        groupName.value = group;
+    }
 
   fetch(`/project/${id}`)
     .then(r => r.json())
