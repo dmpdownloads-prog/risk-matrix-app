@@ -130,8 +130,14 @@ td.low  { background-color: #fff5cc; }
 
   <form method="post" action="/add">
    <input type="hidden" id="projectId">
-
+<input type="text" id="groupName" name="group" list="groupList" placeholder="Enter group name ">
 <input id="projectName" name="name" placeholder="Project name" required>
+
+<datalist id="groupList">
+  {% for g in groups %}
+    <option value="{{ g }}">
+  {% endfor %}
+</datalist>
 
 {% for d in domains %}
  
@@ -148,6 +154,21 @@ td.low  { background-color: #fff5cc; }
       <button type="button" onclick="saveProject()">Save</button>
   <button onclick="hideEditor()">Cancel</button>
   </form>
+</div>
+<div>
+  <label for="groupSelect"><b>Filter by Group:</b></label>
+
+<form method="get" action="/">
+  <select id="groupSelect" name="group" onchange="this.form.submit()">
+    <option value="">All Groups</option>
+
+    {% for g in groups %}
+      <option value="{{ g }}" {% if g == selected_group %}selected{% endif %}>
+        {{ g }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
 </div>
 <div class="card">
 <h2>Projects</h2>
@@ -194,16 +215,26 @@ td.low  { background-color: #fff5cc; }
 </table>
 </div>
 
-<br>
+<!--<br>
+<label for="groupSelect">Select Group:</label>
+<select id="groupSelect">
+  <option value="">-- All Projects --</option>
+
+  {% for g in groups %}
+    <option value="{{ g }}">{{ g }}</option>
+  {% endfor %}
+</select>
+<br> -->
 <div class="card">
   <h2>Export</h2>
-  <a href="/generate">
+  <button class="success" onclick="downloadPNG()">Download PNG</button>
+  <!--<a href="/generate">
     <button class="success">Download PNG</button>
-  </a>
-
-  <a href="/download-pdf">
+  </a>-->
+  <button class="warning" onclick="downloadPDF()">Download PDF</button>
+  <!--<a href="/download-pdf">
     <button class="warning">Download PDF</button>
-  </a>
+  </a>-->
 </div>
 <script>
 function editRow(id) {
@@ -271,6 +302,7 @@ function saveProject() {
     body: JSON.stringify({
       id: document.getElementById("projectId").value || null,
       name: document.getElementById("projectName").value,
+      group: document.getElementById("groupName").value,
       values,
       comments
     })
@@ -294,6 +326,32 @@ function showEditor() {
   }
 
 
+function downloadPNG() {
+  const group = document.getElementById("groupSelect").value;
+  
+  let url;
+  if (group === "") {
+    // All projects
+    url = "/generate";
+  } else {
+    // Group-wise
+    url = "/generate/" + encodeURIComponent(group);
+  }
+
+  window.open(url, "_blank");
+}
+
+function downloadPDF() {
+  const group = document.getElementById("groupSelect").value;
+  
+  let url = "/download-pdf";
+
+  if (group) {
+    url += "?group=" + encodeURIComponent(group);
+  }
+
+  window.open(url, "_blank");
+}
 </script>
 </body>
 </html>

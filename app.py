@@ -9,6 +9,8 @@ from reportlab.lib.pagesizes import A4
 from io import BytesIO
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
+from urllib.parse import unquote
+from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
 
 app = Flask(__name__)
@@ -44,21 +46,49 @@ DOMAINQUESTIONS = [
 
 @app.route("/")
 def index():
-    docs = db.collection("projects").stream()
-    projects = [{**d.to_dict(), "id": d.id} for d in docs]
-    return render_template("index.html", projects=projects, domains=DOMAINS,  domaintext=DOMAINTEXT,  domainqns=DOMAINQUESTIONS)
+    selected_group = request.args.get("group", "").strip()
+
+    if selected_group:
+        docs = (
+            db.collection("projects")
+            .where("group", "==", selected_group)
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+    else:
+        docs = (
+            db.collection("projects")
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+
+    projects = []
+    for d in docs:
+        p = d.to_dict()
+        p["id"] = d.id
+        projects.append(p)
+
+    # fetch distinct groups for dropdown
+    group_docs = db.collection("projects").stream()
+    groups = sorted({g.to_dict().get("group", "Ungrouped") for g in group_docs})
+
+    return render_template("index.html", projects=projects, domains=DOMAINS,  domaintext=DOMAINTEXT,  domainqns=DOMAINQUESTIONS, groups=groups, selected_group=selected_group)
+    #return render_template("index.html",projects=projects,groups=groups,selected_group=selected_group)
 
 @app.route("/add", methods=["POST"])
 def add_project():
     name = request.form["name"]
     values = [request.form[d] for d in DOMAINS]
     comments = [request.form[d] for d in DOMAINS]
+    group_name = request.form.get("group", "").strip() or "Ungrouped"
     #overall = request.form["overall"]
 
     db.collection("projects").add({
         "name": name,
+        "group": group_name,
         "values": values,
-        "comments": comments
+        "comments": comments,
+        "created_at": firestore.SERVER_TIMESTAMP
     })
 
     return redirect(url_for("index"))
@@ -68,11 +98,14 @@ def update_project(id):
     name = request.form["name"]
     values = [request.form[d] for d in DOMAINS]
     comments = [request.form[d] for d in DOMAINS]
+    group_name = request.form.get("group", "").strip() or "Ungrouped"
 
     db.collection("projects").document(id).update({
         "name": name,
+        "group": group_name,
         "values": values,
-        "comments": comments
+        "comments": comments,
+        "created_at": firestore.SERVER_TIMESTAMP
     })
 
     return redirect(url_for("index"))
@@ -83,6 +116,7 @@ def save_project():
 
     project = {
         "name": data["name"],
+        "group": data.get("group", "").strip() or "Ungrouped",
         "values": data["values"],
         "comments": data["comments"]
     }
@@ -91,6 +125,7 @@ def save_project():
     if doc_id:
         db.collection("projects").document(doc_id).set(project)
     else:
+        project["created_at"] = SERVER_TIMESTAMP
         db.collection("projects").add(project)
 
     return {"status": "ok"}
@@ -107,6 +142,42 @@ def get_project(id):
 def delete_project(id):
     db.collection("projects").document(id).delete()
     return redirect(url_for("index"))
+
+def get_all_groups():
+    docs = db.collection("projects").stream()
+    groups = set()
+
+    for doc in docs:
+        g = doc.to_dict().get("group")
+        if g:
+            groups.add(g)
+
+    return sorted(groups)
+
+@app.route("/generate/<group>")
+def generate_image_group(group):
+    from urllib.parse import unquote
+    group = unquote(group)
+
+    docs = db.collection("projects").where("group", "==", group).stream()
+    projects = [d.to_dict() for d in docs]
+
+    if not projects:
+        return f"No projects found for group {group}", 400
+
+    img = draw_matrix(projects)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    filename = f"risk_matrix_{group}.png"
+
+    return send_file(
+        buf,
+        mimetype="image/png",
+        as_attachment=True,
+        download_name=filename
+    )
 
 @app.route("/generate")
 def generate_image():
@@ -127,34 +198,45 @@ def generate_image():
 
 @app.route("/download-pdf")
 def download_pdf():
-    projects_ref = db.collection("projects").stream()
+    group = request.args.get("group", "").strip()
 
-    projects = []
-    for doc in projects_ref:
-        p = doc.to_dict()
-        projects.append(p)
+    # Firestore query
+    if group:
+        docs = (
+            db.collection("projects")
+            .where("group", "==", group)
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+        filename = f"risk_matrix_{group}.pdf"
+    else:
+        docs = (
+            db.collection("projects")
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+        filename = "risk_matrix_all.pdf"
 
+    # Convert to list
+    projects = [d.to_dict() for d in docs]
+
+    print("Selected group:", group)
+    print("Projects returned:", [p["name"] for p in projects])
+
+    if not projects:
+        return "No projects found", 400
+
+    # Build PDF
     buffer = BytesIO()
-
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=40,
-        leftMargin=40,
-        topMargin=40,
-        bottomMargin=40
-    )
-
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
 
     for idx, p in enumerate(projects, start=1):
-        title = f"{idx}. {p['name']}:"
-        story.append(Paragraph(f"<b>{title}</b>", styles["Normal"]))
+        story.append(Paragraph(f"<b>{idx}. {p['name']}</b>", styles["Normal"]))
         story.append(Spacer(1, 8))
 
         table_data = [["Domain", "Value", "Comment"]]
-
         for d, label in zip(DOMAINS, DOMAINTEXT):
             value = p["values"].get(d, "low").capitalize()
             comment = p["comments"].get(d, "")
@@ -162,17 +244,14 @@ def download_pdf():
             Paragraph(label, styles["Normal"]),
             Paragraph(value, styles["Normal"]),
             Paragraph(comment if comment else "-", styles["Normal"])
-    ])
+            ])
 
-        table = Table(table_data, colWidths=[150, 70, 240])
+        table = Table(table_data, colWidths=[150, 80, 250])
         table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("ALIGN", (1, 1), (1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
         ]))
-
         story.append(table)
         story.append(Spacer(1, 20))
 
@@ -180,12 +259,12 @@ def download_pdf():
     doc.author = "Risk Matrix App"
     doc.subject = "Project Risk Assessment"
     doc.build(story)
-
     buffer.seek(0)
+
     return send_file(
         buffer,
         as_attachment=True,
-        download_name="risk_matrix_summary.pdf",
+        download_name=filename,
         mimetype="application/pdf"
     )
 
